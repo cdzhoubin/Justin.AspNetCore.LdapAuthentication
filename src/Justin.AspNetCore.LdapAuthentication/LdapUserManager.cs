@@ -15,7 +15,7 @@ namespace Justin.AspNetCore.LdapAuthentication
     /// </summary>
     /// <typeparam name="TUser"></typeparam>
     public class LdapUserManager<TUser> : Microsoft.AspNetCore.Identity.UserManager<TUser>
-        where TUser: class
+        where TUser : class
     {
         private readonly LdapAuthenticationOptions _ldapOptions;
 
@@ -38,7 +38,7 @@ namespace Justin.AspNetCore.LdapAuthentication
             store, optionsAccessor, passwordHasher, userValidators, passwordValidators, keyNormalizer, errors, services, logger
         )
         {
-            _ldapOptions = ldapOptions.Value;    
+            _ldapOptions = ldapOptions.Value;
         }
 
         /// <summary>
@@ -51,20 +51,7 @@ namespace Justin.AspNetCore.LdapAuthentication
         {
             using (var auth = new LdapAuthentication(_ldapOptions))
             {
-                string dn;
-
-                // This gives a custom way to extract the DN from the user if it is different from the username.
-                // It seems more like this would be a feature of the user store, but we can't get user store from userManager
-                // and all the methods we really need for sign-in are on user manager.
-                if (this.Store is IUserLdapStore<TUser>)
-                {
-                    dn = await((IUserLdapStore<TUser>)this.Store).GetDistinguishedNameAsync(user);
-                }
-                else
-                {
-                    dn = await this.Store.GetNormalizedUserNameAsync(user, CancellationToken.None);
-                }
-
+                string dn = await GetUserDn(user);
                 if (auth.ValidatePassword(dn, password))
                 {
                     return true;
@@ -74,6 +61,16 @@ namespace Justin.AspNetCore.LdapAuthentication
             return false;
         }
 
+        private async Task<string> GetUserDn(TUser user)
+        {
+            var store = Store as IUserLdapStore<TUser>;
+            if (store != null)
+            {
+                return await store.GetDistinguishedNameAsync(user);
+            }
+
+            return await Store.GetNormalizedUserNameAsync(user, CancellationToken.None);
+        }
         /// <summary>
         /// Throws a NotSupportedException.
         /// </summary>
@@ -83,7 +80,19 @@ namespace Justin.AspNetCore.LdapAuthentication
         /// <returns></returns>
         public override Task<IdentityResult> ChangePasswordAsync(TUser user, string currentPassword, string newPassword)
         {
-            throw new NotSupportedException();
+            using (var auth = new LdapAuthentication(_ldapOptions))
+            {
+                string dn = GetUserDn(user).Result;
+                if (auth.ValidatePassword(dn, currentPassword))
+                {
+                    if (auth.ResetPassword(dn, newPassword))
+                    {
+                        return Task.FromResult(IdentityResult.Success);
+                    }
+                }
+            }
+
+            return Task.FromResult(IdentityResult.Failed());
         }
 
         /// <summary>
@@ -128,9 +137,18 @@ namespace Justin.AspNetCore.LdapAuthentication
         /// <returns></returns>
         public override Task<IdentityResult> ResetPasswordAsync(TUser user, string token, string newPassword)
         {
-            throw new NotSupportedException();
-        }
+            using (var auth = new LdapAuthentication(_ldapOptions))
+            {
+                string dn = GetUserDn(user).Result;
+                if (auth.ResetPassword(dn, newPassword))
+                {
+                    return Task.FromResult(IdentityResult.Success);
+                }
 
+            }
+
+            return Task.FromResult(IdentityResult.Failed());
+        }
     }
 
 }
