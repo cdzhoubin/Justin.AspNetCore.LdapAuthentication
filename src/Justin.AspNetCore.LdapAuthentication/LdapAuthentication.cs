@@ -1,11 +1,7 @@
-﻿using Microsoft.Extensions.Options;
-using Novell.Directory.Ldap;
+﻿using Novell.Directory.Ldap;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Justin.AspNetCore.LdapAuthentication
 {
@@ -16,7 +12,7 @@ namespace Justin.AspNetCore.LdapAuthentication
     {
         private readonly LdapAuthenticationOptions _options;
         private readonly LdapConnection _connection;
-        private bool _isDisposed = false;
+        private bool _isDisposed;
 
         /// <summary>
         /// Initializes a new instance with the the given options.
@@ -69,7 +65,7 @@ namespace Justin.AspNetCore.LdapAuthentication
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.Message);
                 return false;
             }
             finally
@@ -103,7 +99,7 @@ namespace Justin.AspNetCore.LdapAuthentication
                 {
                     List<LdapModification> modifications = new List<LdapModification>();
                     LdapAttribute sPassword = new LdapAttribute("userPassword", CreatePasswrod(password));
-                    
+
                     modifications.Add(new LdapModification(LdapModification.REPLACE, sPassword));
                     _connection.Modify(distinguishedName, modifications.ToArray());
                     return true;
@@ -111,7 +107,7 @@ namespace Justin.AspNetCore.LdapAuthentication
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(ex.Message);
+                throw new InvalidOperationException(ex.Message);
             }
             finally
             {
@@ -145,7 +141,7 @@ namespace Justin.AspNetCore.LdapAuthentication
                 if (_connection.Bound)
                 {
                     Dictionary<string, string> list = new Dictionary<string, string>();
-                    LdapSearchResults lsc = _connection.Search(dn, LdapConnection.SCOPE_SUB, _options.SearchFilter, new string[] { "uid" }, false);
+                    LdapSearchResults lsc = _connection.Search(dn, LdapConnection.SCOPE_SUB, _options.SearchFilter, new[] { "uid" }, false);
                     while (lsc.hasMore())
                     {
                         LdapEntry nextEntry = lsc.next();
@@ -157,7 +153,7 @@ namespace Justin.AspNetCore.LdapAuthentication
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.Message);
             }
             finally
             {
@@ -166,18 +162,11 @@ namespace Justin.AspNetCore.LdapAuthentication
             return new Dictionary<string, string>();
         }
 
-        private string CreatePasswrod(string password)
+
+        string CreatePasswrod(string password)
         {
-            var algorithmName = _options.PasswordHash.ToString().ToUpper();
-            using (var algorithm = HashAlgorithm.Create(algorithmName))
-            {
-                if (algorithm != null)
-                {
-                    return  string.Format("{{{1}}}{0}", Convert.ToBase64String(algorithm.ComputeHash(Encoding.ASCII.GetBytes(password))), algorithmName);
-                }
-            }
-            return password;
+            return PasswordTool.HashPasswrod(password, _options.PasswordHash.ToString().ToUpper());
         }
     }
-
 }
+
