@@ -36,40 +36,6 @@ namespace Justin.AspNetCore.LdapAuthentication
         /// <summary>
         /// 密码Hash算法
         /// </summary>
-        public PasswordHash PasswordHash { get; set; } = PasswordHash.Sha512;
-    }
-    /// <summary>
-    /// 密码Hash算法
-    /// </summary>
-    public enum PasswordHash
-    { 
-        /// <summary>
-        /// 
-        /// </summary>
-        Md5,
-        /// <summary>
-        /// 
-        /// </summary>
-        Sha256,
-        /// <summary>
-        /// 
-        /// </summary>
-        Sha128,
-        /// <summary>
-        /// 
-        /// </summary>
-        Sha512,
-        /// <summary>
-        /// 
-        /// </summary>
-        Ssha256,
-        /// <summary>
-        /// 
-        /// </summary>
-        Ssha128,
-        /// <summary>
-        /// 
-        /// </summary>
-        Ssha512
+        public PasswordHash PasswordHash { get; set; } = PasswordHash.Ssha;
     }
 }
